@@ -1,0 +1,310 @@
+// the 'IsTouchingWall' command should be tested to see if a Physics2D.OverlapBox could be used instead, as it would probably work better.
+using System.Collections;
+using System.Collections.Generic;
+using System.Threading;
+using Unity.VisualScripting;
+using UnityEditor;
+using UnityEngine;
+
+public class Move : MonoBehaviour
+{
+    // sets all floats and bools the program needs
+    private float horizontal;
+    private float jumpingPower = 16f;
+    private float boostPower = 32f;
+    private float wallJumpCounter;
+    private float wallJumpPush = 32f;
+    private bool isFacingRight = true;
+    private bool doubleJump = false;
+    private bool no_move = false;
+    private bool timer_script_bool;
+    //private float maxClimbTime = 200
+
+    // I believe this gives the program access to components outside of the program, like layers, rigidbodies, and other objects
+    [SerializeField] private Rigidbody2D rb;
+    [SerializeField] private Transform groundCheck;
+    [SerializeField] private Transform wallCheckLeft;
+    [SerializeField] private Transform wallCheckRight;
+    [SerializeField] private LayerMask groundLayer;
+    [SerializeField] private LayerMask no_climbLayer;
+    [SerializeField] private Timer timer_script;
+
+    // Update is called once per frame
+    void Update()
+    {
+        if (timer_script_bool == false && rb.velocity.x != 0)
+        {
+            timer_script.Set_Timer_State(true);
+            timer_script_bool = false; 
+        }
+
+        horizontal = Input.GetAxisRaw("Horizontal");
+        // sets variables / bools upon touching the ground
+        if (IsGrounded())
+        {
+            doubleJump = true;
+            wallJumpCounter = 0;
+        }
+
+        // a test to see if wall jumps can be done with overlapping circle collisions using a child of the player object, to avoid from putting walljump triggers on every wall in the game (WIP)
+        bool IsTouchingWall()
+        {
+            return (Physics2D.OverlapCircle(wallCheckLeft.position, 0.2f, groundLayer) || (Physics2D.OverlapCircle(wallCheckRight.position, 0.2f, groundLayer)));
+        }
+
+        bool IsTouchingNoClimbWall()
+        {
+            return (Physics2D.OverlapCircle(wallCheckLeft.position, 0.2f, no_climbLayer) || (Physics2D.OverlapCircle(wallCheckRight.position, 0.2f, no_climbLayer)));
+        }
+
+        // allows the player to jump if the user is pressing the space bar and the player character is touching the ground
+        if (Input.GetButtonDown("Jump") && IsGrounded() && Input.GetKey(KeyCode.LeftShift) == false)
+        {
+            rb.velocity = new Vector2(rb.velocity.x, jumpingPower);
+        }
+
+        // causes the player to jump a shorter distance if they let go of the space bar when jumping
+        if (Input.GetButtonUp("Jump") && rb.velocity.y > 0f)
+        {
+            rb.velocity = new Vector2(rb.velocity.x, rb.velocity.y * 0.5f);
+        }
+
+        // calls the flip command
+        Flip();
+
+        // allows the player to boost jump if they otherwise had the ability to jump (currently excluding wall jumps)
+        if ((Input.GetButtonDown("Jump") && (IsGrounded() || doubleJump == true) && (Input.GetKey(KeyCode.LeftShift))))
+        {
+            if (IsGrounded() == false)
+            {
+                doubleJump = false;
+            }
+            if (isFacingRight)
+            {
+                rb.velocity = new Vector2(rb.velocity.x + boostPower, jumpingPower * .75f);
+            }
+            else if (!isFacingRight)
+            {
+                rb.velocity = new Vector2((horizontal * 12f) - boostPower, jumpingPower * .75f);
+            }
+        }
+
+        // allows the player to double jump mid air assuming they haven't already jumped in the air, and that they're not actively touching a wall, and that they're not pressing the boost key
+        if (((Input.GetButtonDown("Jump")) && (doubleJump == true) && (IsGrounded() == false) && (IsTouchingWall() == false) && (IsTouchingNoClimbWall() == false) && (Input.GetKey(KeyCode.LeftShift) == false)))
+        {
+            doubleJump = false;
+            rb.velocity = new Vector2(rb.velocity.x, jumpingPower);
+        }
+
+        if (Input.GetButtonDown("Jump") && IsTouchingWall() && IsGrounded() == false && wallJumpCounter <= 5 && Input.GetKey("z") && WallIsLeft(groundLayer))
+        {
+            if (horizontal != 1)
+            {
+                wallJumpCounter += 1;
+                print("z jump");
+                rb.velocity = new Vector2(rb.velocity.x, jumpingPower * .8f);
+            }
+            else
+            {
+                print("left wall jump");
+                rb.velocity = new Vector2(wallJumpPush, jumpingPower * .54f);
+            }
+        }
+        else if (Input.GetButtonDown("Jump") && IsTouchingWall() && IsGrounded() == false && wallJumpCounter <= 5 && Input.GetKey("z") && WallIsRight(groundLayer))
+        {
+            if (horizontal != -1)
+            {
+                wallJumpCounter += 1;
+                print("z jump");
+                rb.velocity = new Vector2(rb.velocity.x, jumpingPower * .8f);
+            }
+            else
+            {
+                print("right wall jump");
+                rb.velocity = new Vector2(-wallJumpPush, jumpingPower * .54f);
+            }
+        }
+        else if (Input.GetButtonDown("Jump") && IsGrounded() == false && (WallIsLeft(groundLayer) || WallIsLeft(no_climbLayer)))
+        {
+            print("left wall jump");
+            print("is it really this code?");
+            rb.velocity = new Vector2(wallJumpPush, jumpingPower * .54f);
+        }
+        else if (Input.GetButtonDown("Jump") && IsGrounded() == false && (WallIsRight(groundLayer) || WallIsRight(no_climbLayer)))
+        {
+            print("right wall jump");
+            rb.velocity = new Vector2(-wallJumpPush, jumpingPower * .54f);
+        }
+
+        /*
+        // allows player to wall jump, assuming they haven't run out of stamina, which occurs after 'wallJumpCounter' wall jumps (curretly set to 5 wall jumps)
+        if ((Input.GetButtonDown("Jump") && ((IsTouchingWall() || IsTouchingNoClimbWall()) && (IsGrounded() == false))))
+        {
+            print("main code ran");
+            if (wallJumpCounter <= 5 && Input.GetKey("z") && ((WallIsLeft(groundLayer) && horizontal != 1) || (WallIsRight(groundLayer) && horizontal != -1)))
+            {
+                wallJumpCounter += 1;
+                print("z jump");
+                rb.velocity = new Vector2(rb.velocity.x, jumpingPower * .8f);
+            }
+            // Checks which side of the wall the player is on to push them the opposite direction. 
+            else
+            {
+                if (WallIsLeft(groundLayer) || WallIsLeft(no_climbLayer))
+                {
+                    print("left wall jump");
+                    rb.velocity = new Vector2(wallJumpPush, jumpingPower * .54f);
+                }
+                else if (WallIsRight(groundLayer) || WallIsRight(no_climbLayer))
+                {
+                    print("right wall jump");
+                    rb.velocity = new Vector2(-wallJumpPush, jumpingPower * .54f);
+                }
+            }
+        }
+
+        */
+        
+
+        // lowers gravity scale if player is touching a wall, they're not holding z to climb, and their velocity is less than zero. sets gravity back to standard (2.5f) once they leave the wall.
+        if (IsTouchingWall() && Input.GetKey("z") == false && rb.velocity.y < 0)
+        {
+            rb.gravityScale = 1f;
+        }
+        else if (IsTouchingNoClimbWall() && rb.velocity.y < 0)
+        {
+            rb.gravityScale = 1.5f;
+        }
+        else if (rb.gravityScale != 2.5f)
+        {
+            if (rb.gravityScale == 0f) { }
+            else { rb.gravityScale = 2.5f; }
+        }
+
+
+        no_move = false;
+
+        if ((Input.GetKey("z")) && IsTouchingWall() && (Input.GetButton("Jump") == false || rb.velocity.y < 0))
+        {
+            no_move = true;
+            if (Input.GetKey("up") || Input.GetKey("w"))
+            {
+                rb.velocity = new Vector2(0, 5);
+            }
+            else if (Input.GetKey("down") || Input.GetKey("s"))
+            {
+                rb.velocity = new Vector2(0, -5);
+            }
+            // If the player isn't holding a direction, allows the player to stay still. Technically moves the player up a smidge to account for gravity still trying to move the player down
+            else
+            {
+                rb.velocity = new Vector2(0, .4905f);
+            }
+        }
+
+        if (rb.velocity.y < -40)
+        {
+            rb.velocity = new Vector2(rb.velocity.x, -40);
+            print("Terminal velocity reached");
+        }
+
+
+    }
+
+
+    // allows the player to move left and right using the a or d key
+    private void FixedUpdate()
+    {
+        // gradually increases the players speed to horizontal * speed velocity, or to zero
+        MovementUpdate(12f, .95f, .9f);
+
+    }
+    private void MovementUpdate(float speed, float slowDown, float slowDownGround)
+    {
+        if (no_move == false)
+        {
+            if (rb.velocity.x >= -speed && rb.velocity.x <= speed)
+            {
+                rb.velocity = new Vector2(rb.velocity.x + (((horizontal * speed) - rb.velocity.x)) * 8 * Time.deltaTime, rb.velocity.y);
+            }
+
+            // all of these are to make the speeds above 'speed' less effected by slowdowns in the above if statement. While on the ground the player has a higher slowdown multiplier
+            else if (IsGrounded() && rb.velocity.x > speed && isFacingRight)
+            {
+                rb.velocity = new Vector2(rb.velocity.x * (slowDownGround + .02f), rb.velocity.y);
+            }
+            else if (IsGrounded() && rb.velocity.x > speed && !isFacingRight)
+            {
+                rb.velocity = new Vector2(rb.velocity.x * (slowDownGround - .05f), rb.velocity.y);
+            }
+            else if (IsGrounded() && rb.velocity.x < -speed && !isFacingRight)
+            {
+                rb.velocity = new Vector2(rb.velocity.x * (slowDownGround + .02f), rb.velocity.y);
+            }
+            else if (IsGrounded() && rb.velocity.x < -speed && isFacingRight)
+            {
+                rb.velocity = new Vector2(rb.velocity.x * (slowDownGround - .05f), rb.velocity.y);
+            }
+
+            else if (rb.velocity.x > speed && isFacingRight)
+            {
+                rb.velocity = new Vector2(rb.velocity.x * (slowDown + .02f), rb.velocity.y);
+            }
+            else if (rb.velocity.x > speed && !isFacingRight)
+            {
+                rb.velocity = new Vector2(rb.velocity.x * (slowDown - .05f), rb.velocity.y);
+            }
+            else if (rb.velocity.x < -speed && !isFacingRight)
+            {
+                rb.velocity = new Vector2(rb.velocity.x * (slowDown + .02f), rb.velocity.y);
+            }
+            else if (rb.velocity.x < -speed && isFacingRight)
+            {
+                rb.velocity = new Vector2(rb.velocity.x * (slowDown - .05f), rb.velocity.y);
+            }
+        }
+    }
+    private bool IsGrounded()
+    {
+        return Physics2D.OverlapCircle(groundCheck.position, 0.2f, groundLayer) || Physics2D.OverlapCircle(groundCheck.position, 0.2f, no_climbLayer);
+    }
+
+    //Not technically necessary, unless i use an actual character sprite
+    private void Flip()
+    {
+        if (isFacingRight && horizontal < 0f || !isFacingRight && horizontal > 0f)
+        {
+            isFacingRight = !isFacingRight;
+            Vector3 localScale = transform.localScale;
+            localScale.x *= -1f;
+            transform.localScale = localScale;
+
+        }
+    }
+
+    private bool WallIsLeft(LayerMask wall_layer)
+    {
+        if ((Physics2D.OverlapCircle(wallCheckLeft.position, 0.2f, wall_layer) && isFacingRight) || (Physics2D.OverlapCircle(wallCheckRight.position, 0.2f, wall_layer) && !isFacingRight))
+        {
+            print("Wall Left");
+            return true;
+        }
+        else 
+        {
+            return false;
+        }
+    }
+
+    private bool WallIsRight(LayerMask wall_layer)
+    {
+        if ((Physics2D.OverlapCircle(wallCheckRight.position, 0.2f, wall_layer) && isFacingRight || Physics2D.OverlapCircle(wallCheckLeft.position, 0.2f, wall_layer) && !isFacingRight))
+        {
+            print("Wall Right");
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+}
