@@ -1,0 +1,60 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using TMPro;
+using System;
+
+public class Timer : MonoBehaviour
+{
+    [SerializeField] private TMP_Text timer_text;
+    private bool timer_active = false;
+    private float current_time = 0;
+    private float current_time_rounded = 0;
+    private float minutes = 0;
+    private float x;
+
+    // Update is called once per frame
+    void Update()
+    {
+        if (timer_active == true)
+        {
+            current_time = current_time + Time.deltaTime;
+            current_time_rounded = Mathf.Floor(current_time);
+        }
+        if (current_time_rounded < 60)
+        {
+            timer_text.text = current_time_rounded.ToString();
+        }
+        else
+        {
+            x = current_time_rounded % 60;
+            if (x < 10)
+            {
+                timer_text.text = (Mathf.Floor(current_time_rounded / 60)).ToString() + ":0" + x.ToString();
+            }
+            else
+            {
+                timer_text.text = (Mathf.Floor(current_time_rounded / 60)).ToString() + ":" + x.ToString();
+            }
+        }
+        
+    }
+
+    public void Set_Timer_State(bool timer_state)
+    {
+        timer_active = timer_state;
+    }
+
+    public string Retrieve_Current_Time_String()
+    {
+        x = current_time_rounded % 60;
+            if (x < 10)
+            {
+                return (Mathf.Floor(current_time_rounded / 60)).ToString() + ":0" + x.ToString();
+            }
+            else
+            {
+                return (Mathf.Floor(current_time_rounded / 60)).ToString() + ":" + x.ToString();
+            }
+    }
+}
