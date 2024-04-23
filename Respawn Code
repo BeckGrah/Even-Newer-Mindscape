@@ -1,0 +1,76 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+
+public class Death_Detection_2 : MonoBehaviour
+{
+    [SerializeField] private Rigidbody2D rb;
+    [SerializeField] private Transform respawn;
+
+    private GameObject current_respawn_trigger;
+    private int last_respawn_trigger_num = 0;
+    private List<Vector3> respawn_position_list = new List<Vector3>();
+    private GameObject respawn_position_parent;
+
+
+    void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.tag == "spike")
+        {
+            if (respawn == null)
+            {
+                respawn = GameObject.FindWithTag("respawn 0").transform;
+            }
+            rb.transform.position = respawn.position;
+        }
+    }
+
+    void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (collision.gameObject.tag == "respawn trigger")
+        {
+            if (respawn == null)
+            {
+                respawn = GameObject.FindWithTag("respawn 0").transform;
+            }
+            current_respawn_trigger = collision.gameObject;
+            current_respawn_trigger.SetActive(false);
+
+            int current_respawn_trigger_num = current_respawn_trigger.name[current_respawn_trigger.name.Length - 1] - '0';
+            if (last_respawn_trigger_num < current_respawn_trigger_num)
+                respawn.transform.position = respawn_position_list[current_respawn_trigger_num];
+            last_respawn_trigger_num = current_respawn_trigger_num;
+        }
+    }
+    public void reset_respawn_count()
+    {
+        last_respawn_trigger_num = 0;
+    }
+
+    void Update() 
+    {
+        SceneManager.sceneUnloaded += OnSceneUnloaded;
+    }
+
+    void OnSceneUnloaded (Scene scene) 
+    {
+        respawn_position_list = new List<Vector3>();
+        respawn_position_parent = GameObject.FindWithTag("Respawn Position Parent");
+        for (int i = 0; i < respawn_position_parent.transform.childCount; i++)
+        {
+            respawn_position_list.Add(respawn_position_parent.transform.GetChild(i).transform.position);
+        }
+    }
+    
+
+    void Start()
+    {
+        respawn_position_parent = GameObject.FindWithTag("Respawn Position Parent");
+        for (int i = 0; i < respawn_position_parent.transform.childCount; i++)
+        {
+            respawn_position_list.Add(respawn_position_parent.transform.GetChild(i).transform.position);
+        }
+    }
+}
