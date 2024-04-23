@@ -1,0 +1,80 @@
+using Cinemachine;
+using System.Collections;
+using System.Collections.Generic;
+using System.Runtime.InteropServices.WindowsRuntime;
+using Unity.VisualScripting;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UIElements;
+
+public class SceneLoader : MonoBehaviour
+
+{
+    [SerializeField] public string Scene_Name;
+    [SerializeField] private Rigidbody2D player_rb;
+    // used to see which way to move the player based on what direction the door leads
+    private Scene current_scene;
+    private GameObject cam_bounds;
+    private CinemachineVirtualCamera vcam;
+    private Camera main_cam;
+    private Vector3 player_velocity;
+    private string old_scene_name;
+    private int vcam_priority;
+    private Death_Detection_2 respawn_script;
+
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        // all of this is just accessing game objects in scene to be used later
+        cam_bounds = GameObject.FindWithTag("Camera Bounds");
+        current_scene = SceneManager.GetActiveScene();
+        player_rb = GameObject.FindWithTag("Player").GetComponent<Rigidbody2D>();
+        respawn_script = GameObject.FindWithTag("Player").GetComponent<Death_Detection_2>();
+        main_cam = Camera.main;
+    }
+
+    void OnTriggerEnter2D(Collider2D collision)
+    {
+        // loads the new scene
+        old_scene_name = SceneManager.GetActiveScene().name;
+        vcam = GameObject.FindWithTag("vcam").GetComponent<CinemachineVirtualCamera>();
+        SceneManager.LoadScene(sceneName: Scene_Name, LoadSceneMode.Additive);
+        vcam_priority = vcam.m_Priority;
+        vcam.m_Priority = 0;
+        player_velocity = player_rb.velocity;
+        player_rb.constraints = RigidbodyConstraints2D.FreezeAll;
+        StartCoroutine(wait_till_cam());     
+    }
+
+    public bool IsBlending { get; }
+    private bool is_cam_blending()
+    {
+        StartCoroutine(wait_a_bit());
+        if (IsBlending == true) { return true; }
+        else { return false; }
+
+    }
+    private IEnumerator wait_till_cam()
+    {
+        yield return new WaitUntil(() => main_cam.velocity != Vector3.zero);
+        yield return new WaitUntil(() => main_cam.velocity == Vector3.zero);
+        player_rb.constraints = RigidbodyConstraints2D.None;
+        player_rb.constraints = RigidbodyConstraints2D.FreezeRotation;
+        player_rb.velocity = player_velocity;
+        SceneManager.UnloadSceneAsync(sceneName: old_scene_name);
+    }
+
+    private IEnumerator wait_a_bit()
+    {
+        yield return new WaitForSeconds(.5f);
+    }
+
+    void OnDestroy()
+    {
+        vcam.m_Priority = vcam_priority;
+        respawn_script.reset_respawn_count();
+        print(vcam.m_Priority);
+    }
+    
+}
