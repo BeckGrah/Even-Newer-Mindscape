@@ -1,0 +1,36 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using TMPro;
+using System;
+
+public class EndGame : MonoBehaviour
+{
+    Rigidbody2D player_rb;
+    Timer timer_script;
+    private TMP_Text end_game_screen;
+    private GameObject end_game_screen_obj;
+    private string current_time;
+    private GameObject TMP_Timer;
+    
+    void Start()
+    {
+        player_rb = GameObject.FindWithTag("Player").GetComponent<Rigidbody2D>();
+        timer_script = GameObject.FindWithTag("Timer").GetComponent<Timer>();
+        end_game_screen_obj = GameObject.FindWithTag("End Game TMP");
+        end_game_screen = GameObject.FindWithTag("End Game TMP").GetComponent<TMP_Text>();
+        TMP_Timer = GameObject.FindWithTag("TMP");
+    }
+    void OnTriggerEnter2D(Collider2D collision)
+    {
+        timer_script.Set_Timer_State(false);
+        end_game_screen_obj.SetActive(true);
+        player_rb.constraints = RigidbodyConstraints2D.FreezeAll;
+        TMP_Timer.SetActive(false);
+        current_time = timer_script.Retrieve_Current_Time_String();
+        end_game_screen.text = "You beat the game! Your final time was " + current_time.ToString() + " seconds";
+        
+    }
+
+    
+}
